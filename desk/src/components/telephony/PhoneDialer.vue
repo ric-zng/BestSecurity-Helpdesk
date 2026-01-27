@@ -1,0 +1,246 @@
+<template>
+  <Teleport to="body">
+    <!-- Floating Action Button -->
+    <button
+      v-if="!showDialog"
+      @click="showDialog = true"
+      class="phone-dialer-fab"
+      title="Open Phone Dialer"
+    >
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+      </svg>
+    </button>
+
+    <!-- Dialog -->
+    <Dialog v-model="showDialog" :options="{ title: 'Phone Dialer', size: 'sm' }">
+      <template #body-content>
+        <div class="phone-dialer-container">
+          <!-- Country Selector -->
+          <div class="country-selector mb-4">
+            <label class="block mb-2 font-semibold text-sm">Select Country</label>
+            <input
+              v-model="countrySearch"
+              type="text"
+              placeholder="Search country..."
+              class="form-input w-full mb-2"
+            />
+            <div class="country-list border rounded max-h-40 overflow-y-auto p-1">
+              <div
+                v-for="country in filteredCountries"
+                :key="country.code"
+                @click="selectCountry(country)"
+                :class="[
+                  'country-item p-2 rounded cursor-pointer flex items-center gap-2',
+                  selectedCountry?.code === country.code ? 'bg-green-100' : 'hover:bg-gray-100'
+                ]"
+              >
+                <span class="text-xl">{{ country.flag }}</span>
+                <span class="flex-1">{{ country.name }}</span>
+                <span class="text-gray-500 text-sm">{{ country.code }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phone Display -->
+          <div class="phone-display mb-4">
+            <label class="block mb-2 font-semibold text-sm">Phone Number</label>
+            <div class="flex gap-2 items-center">
+              <div class="country-code-display px-3 py-2 bg-gray-100 border rounded font-semibold min-w-[70px] text-center">
+                {{ selectedCountry?.code || '+45' }}
+              </div>
+              <input
+                v-model="phoneNumber"
+                type="text"
+                readonly
+                placeholder="Enter number"
+                class="form-input flex-1 text-lg font-medium tracking-wider"
+              />
+            </div>
+          </div>
+
+          <!-- Keypad -->
+          <div class="phone-keypad grid grid-cols-3 gap-2 mb-4">
+            <button
+              v-for="key in keypadKeys"
+              :key="key"
+              @click="addDigit(key)"
+              class="keypad-btn p-4 text-2xl font-semibold border rounded-lg hover:bg-gray-50"
+            >
+              {{ key }}
+            </button>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex gap-2">
+            <button
+              @click="clearDigit"
+              class="btn btn-default flex-1 py-3"
+            >
+              <svg class="w-5 h-5 inline mr-1" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z"/>
+              </svg>
+              Clear
+            </button>
+            <button
+              @click="makeCall"
+              :disabled="!canCall"
+              class="btn btn-primary flex-2 py-3 font-semibold"
+              :class="{ 'opacity-50 cursor-not-allowed': !canCall }"
+            >
+              <svg class="w-5 h-5 inline mr-1" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+              </svg>
+              Call
+            </button>
+          </div>
+        </div>
+      </template>
+    </Dialog>
+  </Teleport>
+</template>
+
+<script setup>
+
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { Dialog } from 'frappe-ui';
+import { useTelephonyStore } from '@/stores/telephony';
+
+const telephonyStore = useTelephonyStore();
+
+const countries = [
+  { name: 'Denmark', code: '+45', flag: '🇩🇰' },
+  { name: 'Sweden', code: '+46', flag: '🇸🇪' },
+  { name: 'Norway', code: '+47', flag: '🇳🇴' },
+  { name: 'Finland', code: '+358', flag: '🇫🇮' },
+  { name: 'Germany', code: '+49', flag: '🇩🇪' },
+  { name: 'United Kingdom', code: '+44', flag: '🇬🇧' },
+  { name: 'United States', code: '+1', flag: '🇺🇸' },
+  { name: 'Canada', code: '+1', flag: '🇨🇦' },
+  { name: 'France', code: '+33', flag: '🇫🇷' },
+  { name: 'Spain', code: '+34', flag: '🇪🇸' },
+  { name: 'Italy', code: '+39', flag: '🇮🇹' },
+  { name: 'Netherlands', code: '+31', flag: '🇳🇱' },
+  { name: 'Belgium', code: '+32', flag: '🇧🇪' },
+  { name: 'Switzerland', code: '+41', flag: '🇨🇭' },
+  { name: 'Austria', code: '+43', flag: '🇦🇹' },
+  { name: 'Poland', code: '+48', flag: '🇵🇱' },
+  { name: 'Tanzania', code: '+255', flag: '🇹🇿' },
+  { name: 'Kenya', code: '+254', flag: '🇰🇪' },
+  { name: 'Uganda', code: '+256', flag: '🇺🇬' },
+  { name: 'Rwanda', code: '+250', flag: '🇷🇼' },
+  { name: 'South Africa', code: '+27', flag: '🇿🇦' },
+  { name: 'India', code: '+91', flag: '🇮🇳' },
+  { name: 'China', code: '+86', flag: '🇨🇳' },
+  { name: 'Japan', code: '+81', flag: '🇯🇵' },
+  { name: 'Australia', code: '+61', flag: '🇦🇺' },
+].sort((a, b) => a.name.localeCompare(b.name));
+
+const showDialog = ref(false);
+const selectedCountry = ref(countries.find(c => c.code === '+45')); // Default Denmark
+const phoneNumber = ref('');
+const countrySearch = ref('');
+const keypadKeys = [1, 2, 3, 4, 5, 6, 7, 8, 9, '*', 0, '#'];
+
+const filteredCountries = computed(() => {
+  if (!countrySearch.value) return countries;
+  const search = countrySearch.value.toLowerCase();
+  return countries.filter(c =>
+    c.name.toLowerCase().includes(search) ||
+    c.code.toLowerCase().includes(search)
+  );
+});
+
+const canCall = computed(() => {
+  return selectedCountry.value && phoneNumber.value.length > 0;
+});
+
+function selectCountry(country) {
+  selectedCountry.value = country;
+}
+
+function addDigit(digit) {
+  phoneNumber.value += digit;
+}
+
+function clearDigit() {
+  phoneNumber.value = phoneNumber.value.slice(0, -1);
+}
+
+function handleKeyPress(event) {
+  if (!showDialog.value) return;
+  
+  const key = event.key;
+  if (/^[0-9*#]$/.test(key)) {
+    addDigit(key);
+  } else if (key === 'Backspace') {
+    clearDigit();
+  }
+}
+
+function makeCall() {
+  if (!canCall.value) return;
+
+  const fullNumber = selectedCountry.value.code + phoneNumber.value;
+  
+  showDialog.value = false;
+  
+  // Use the telephony store to make the call
+  // This will trigger the existing CallUI with Twilio/Exotel
+  // Pass empty strings for doctype and docname when calling without a ticket context
+  telephonyStore.makeCall({
+    number: fullNumber,
+    doctype: '',
+    docname: ''
+  });
+
+  // Reset the phone number
+  phoneNumber.value = '';
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyPress);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyPress);
+});
+</script>
+
+<style scoped>
+.phone-dialer-fab {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  z-index: 9999;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #2490EF;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.phone-dialer-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.phone-dialer-fab svg {
+  stroke: white;
+}
+
+.keypad-btn {
+  transition: all 0.1s;
+}
+
+.keypad-btn:active {
+  transform: scale(0.95);
+  background-color: #e5e7eb;
+}
+</style>
