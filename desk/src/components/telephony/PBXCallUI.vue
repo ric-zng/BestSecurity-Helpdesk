@@ -191,7 +191,9 @@ let counterUp = ref(null);
 let contact = ref(null);
 let callStatus = ref("");
 let currentCallId = ref(null);
+let currentChannelId = ref(null); // Store channel_id for answer/hangup operations
 let currentPhoneNumber = ref(null);
+let handledCallIds = new Set(); // Track calls that have been handled to prevent duplicates
 
 const { width: windowWidth, height: windowHeight } = useWindowSize();
 const { x, y, style } = useDraggable(callPopup, {
@@ -224,7 +226,23 @@ function setup() {
 function handleIncomingCall(data) {
   console.log("PBX incoming call:", data);
 
+  // Prevent duplicate handling of the same call
+  if (handledCallIds.has(data.call_id)) {
+    console.log("Call already being handled, ignoring duplicate event");
+    return;
+  }
+
+  // If we're already on a call or showing a popup, ignore new calls
+  if (showCallPopup.value && currentCallId.value) {
+    console.log("Already handling a call, ignoring new call");
+    return;
+  }
+
+  // Mark this call as handled
+  handledCallIds.add(data.call_id);
+
   currentCallId.value = data.call_id;
+  currentChannelId.value = data.channel_id; // Store channel_id for answer/hangup
   currentPhoneNumber.value = data.phone;
 
   // Lookup contact info
@@ -298,11 +316,14 @@ async function lookupContact(phoneNumber) {
 }
 
 async function acceptIncomingCall() {
-  console.log("Accepting PBX call:", currentCallId.value);
+  console.log("Accepting PBX call:", currentCallId.value, "channel:", currentChannelId.value);
 
   try {
+    // For internal calls, try without channel_id first
     const result = await call("pbx_integration.api.call.answer_call", {
       call_id: currentCallId.value,
+      // Don't send channel_id for internal calls - causes "INTERFACE NOT EXISTED" error
+      // channel_id: currentChannelId.value,
     });
 
     if (result && result.success) {
@@ -321,11 +342,14 @@ async function acceptIncomingCall() {
 }
 
 async function rejectIncomingCall() {
-  console.log("Rejecting PBX call:", currentCallId.value);
+  console.log("Rejecting PBX call:", currentCallId.value, "channel:", currentChannelId.value);
 
   try {
+    // For internal calls, try without channel_id first
     const result = await call("pbx_integration.api.call.hangup_call", {
       call_id: currentCallId.value,
+      // Don't send channel_id for internal calls - may cause issues
+      // channel_id: currentChannelId.value,
     });
 
     if (result && result.success) {
@@ -376,11 +400,17 @@ async function cancelCall() {
 function endCall() {
   console.log("Ending PBX call");
 
+  // Remove from handled calls set (allow same call_id to be reused later)
+  if (currentCallId.value) {
+    handledCallIds.delete(currentCallId.value);
+  }
+
   onCall.value = false;
   calling.value = false;
   showCallPopup.value = false;
   showSmallCallWindow.value = false;
   currentCallId.value = null;
+  currentChannelId.value = null;
   currentPhoneNumber.value = null;
   contact.value = null;
   callStatus.value = "";
