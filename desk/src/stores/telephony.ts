@@ -18,6 +18,7 @@ export const useTelephonyStore = defineStore("telephony", {
     isCallingEnabled: false,
     isTwilioEnabled: false,
     isExotelEnabled: false,
+    isPBXEnabled: false,
     defaultCallingMedium: "",
     callMethod: (params: MakeCallParams) => {},
     linkDoc: {
@@ -38,6 +39,9 @@ export const useTelephonyStore = defineStore("telephony", {
     setIsCallingEnabled(value: boolean) {
       this.isCallingEnabled = value;
     },
+    setIsPBXEnabled(value: boolean) {
+      this.isPBXEnabled = value;
+    },
     async fetchCallIntegrationStatus() {
       try {
         this.isLoading = true;
@@ -45,7 +49,17 @@ export const useTelephonyStore = defineStore("telephony", {
         this.isTwilioEnabled = Boolean(data.twilio_enabled);
         this.isExotelEnabled = Boolean(data.exotel_enabled);
         this.defaultCallingMedium = data.default_calling_medium;
-        this.isCallingEnabled = this.isTwilioEnabled || this.isExotelEnabled;
+
+        // Check PBX integration status
+        try {
+          const pbxData = await call("pbx_integration.api.call.is_pbx_enabled");
+          this.isPBXEnabled = Boolean(pbxData.pbx_enabled && pbxData.has_extension);
+        } catch (pbxError) {
+          // PBX integration not available
+          this.isPBXEnabled = false;
+        }
+
+        this.isCallingEnabled = this.isTwilioEnabled || this.isExotelEnabled || this.isPBXEnabled;
       } catch (error) {
         console.error("Failed to fetch call integration status:", error);
       } finally {
