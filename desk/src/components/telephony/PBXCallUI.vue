@@ -252,7 +252,7 @@ function handleCallStatusUpdate(data) {
       onCall.value = true;
       calling.value = false;
       callStatus.value = "answered";
-      counterUp.value?.startTimer();
+      counterUp.value?.start();
     }
   }
 }
@@ -309,7 +309,7 @@ async function acceptIncomingCall() {
       onCall.value = true;
       calling.value = false;
       callStatus.value = "answered";
-      counterUp.value?.startTimer();
+      counterUp.value?.start();
       toast.success("Call answered");
     } else {
       toast.error(result.message || "Failed to answer call");
@@ -385,7 +385,7 @@ function endCall() {
   contact.value = null;
   callStatus.value = "";
 
-  counterUp.value?.resetTimer();
+  counterUp.value?.stop();
 
   onCallEnded?.();
 }
