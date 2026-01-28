@@ -174,6 +174,7 @@ import { computed, inject, onMounted, ref, watch } from "vue";
 import LucidePhone from "~icons/lucide/phone";
 import CountUpTimer from "./CountUpTimer.vue";
 import MinimizeIcon from "./Icons/MinimizeIcon.vue";
+import { socket } from "@/socket";
 
 const telephonyStore = useTelephonyStore();
 
@@ -211,13 +212,13 @@ function setup() {
   console.log("PBX CallUI setup");
 
   // Listen for incoming calls from PBX webhook
-  frappe.realtime.on("pbx_incoming_call", handleIncomingCall);
+  socket.on("pbx_incoming_call", handleIncomingCall);
 
   // Listen for call status updates
-  frappe.realtime.on("pbx_call_status_update", handleCallStatusUpdate);
+  socket.on("pbx_call_status_update", handleCallStatusUpdate);
 
   // Listen for call ended
-  frappe.realtime.on("pbx_call_ended", handleCallEnded);
+  socket.on("pbx_call_ended", handleCallEnded);
 }
 
 function handleIncomingCall(data) {
@@ -236,8 +237,9 @@ function handleIncomingCall(data) {
   onCall.value = false;
   callStatus.value = "ringing";
 
-  // Play ringtone sound
-  frappe.utils.play_sound("call");
+  // Play ringtone sound (optional - not available in Vue SPA)
+  // TODO: Implement audio notification using HTML5 Audio API
+  // frappe.utils.play_sound("call");
 
   onCallStarted?.();
 }
