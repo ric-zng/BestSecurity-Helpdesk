@@ -2,8 +2,10 @@ import vue from "@vitejs/plugin-vue";
 import vueJsx from "@vitejs/plugin-vue-jsx";
 import frappeui from "frappe-ui/vite";
 import path from "path";
+import Icons from "unplugin-icons/vite";
 import IconsResolver from "unplugin-icons/resolver";
 import Components from "unplugin-vue-components/vite";
+import AutoImport from "unplugin-auto-import/vite";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
@@ -11,7 +13,7 @@ export default defineConfig({
   plugins: [
     frappeui({
       frappeProxy: true,
-      lucideIcons: true,
+      lucideIcons: false,
       jinjaBootData: true,
       buildConfig: {
         outDir: `../helpdesk/public/desk`,
@@ -27,11 +29,20 @@ export default defineConfig({
 
     vue(),
     vueJsx(),
+    AutoImport({
+      resolvers: IconsResolver({
+        prefix: "Lucide",
+        enabledCollections: ["lucide"],
+      }),
+    }),
     Components({
       resolvers: IconsResolver({
         prefix: false,
         enabledCollections: ["lucide"],
       }),
+    }),
+    Icons({
+      compiler: "vue3",
     }),
     VitePWA({
       registerType: "autoUpdate",
@@ -96,5 +107,15 @@ export default defineConfig({
       "lowlight",
       "interactjs",
     ],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-vue": ["vue", "vue-router", "pinia"],
+          "vendor-ui": ["@headlessui/vue", "@vueuse/core"],
+        },
+      },
+    },
   },
 });

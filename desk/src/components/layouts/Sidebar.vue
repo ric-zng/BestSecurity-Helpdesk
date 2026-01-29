@@ -222,6 +222,7 @@ import Ticket from "~icons/lucide/ticket";
 import Timer from "~icons/lucide/timer";
 import UserPen from "~icons/lucide/user-pen";
 import LucideUserPlus from "~icons/lucide/user-plus";
+import LucideKeyboard from "~icons/lucide/keyboard";
 import { setActiveSettingsTab } from "../Settings/settingsModal";
 
 const { isMobileView } = useScreenSize();
