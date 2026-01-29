@@ -108,4 +108,14 @@ export default defineConfig({
       "interactjs",
     ],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-vue": ["vue", "vue-router", "pinia"],
+          "vendor-ui": ["@headlessui/vue", "@vueuse/core"],
+        },
+      },
+    },
+  },
 });
